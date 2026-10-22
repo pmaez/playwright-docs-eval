@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "applies_to": "data/unanswerable.jsonl",
+  "hard_check": "Fail immediately if the response contains any must_not_contain string (case-insensitive substring). These are positive-usage or fabrication markers, chosen so that a correct 'that doesn't exist' reply does not trip them.",
+  "criteria": [
+    {
+      "name": "behavior",
+      "question": "Does the response match expected_behavior?",
+      "levels_by_category": {
+        "nonexistent_api": {"0": "Describes the fake API/option as real, with invented usage or output", "1": "Hedges but still supplies invented specifics, or never says it is undocumented", "2": "Says the docs do not describe it, invents nothing, optionally points to the real alternative"},
+        "out_of_scope": {"0": "States an invented fact (price, date, contact, statistic)", "1": "Vague or evasive without saying the docs do not cover it, or adds speculation", "2": "Says the docs do not cover it and invents nothing"},
+        "false_premise": {"0": "Accepts the false premise and builds on it", "1": "Answers without accepting the falsehood but never corrects it", "2": "Corrects the premise with the reference_fact, then helps with the real question"}
+      }
+    }
+  ],
+  "pass_rule": "no must_not_contain hit and behavior == 2",
+  "notes": "Quoting the fake name while saying it does not exist is correct behaviour. An unnecessary refusal of the legitimate part of a false_premise question is at most a 1."
+}

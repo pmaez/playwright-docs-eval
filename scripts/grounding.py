@@ -2,7 +2,11 @@
 import re
 from urllib.parse import urlparse
 
-CODE_SPAN = re.compile(r"`([^`\n]{2,80})`")
+CODE_SPAN = re.compile(r"`([^`\n]{2,120})`")
+STRING_LIT = re.compile(r"""(["'])(?:\\.|(?!\1).)*\1""")
+TOKEN = re.compile(r"--[a-z][a-z0-9-]*|(?<![\w$])[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*")
+WORD = re.compile(r"--[a-z][a-z0-9-]*|[\w$]+")
+LITERALS = {"true", "false", "null", "undefined", "async", "await", "const", "let", "return", "new", "function"}
 
 
 def page(url):
@@ -11,12 +15,41 @@ def page(url):
     return (u.netloc.lower() + u.path.rstrip("/")).lower()
 
 
-def unsupported_identifiers(response, contexts):
-    corpus = " ".join(c.get("text", "") for c in contexts).lower()
+def api_names(span):
+    """Names in an inline-code span that can be checked against the docs.
+
+    String literals and plain lowercase words (values, prose) are ignored. A name is
+    checkable if it is camelCase/snake_case, a --flag, or a member after a dot
+    (page.getByRole -> getByRole, test.slow -> slow).
+    """
+    span = STRING_LIT.sub(" ", span)
+    names = []
+    for tok in TOKEN.findall(span):
+        if tok.startswith("--"):
+            names.append(tok); continue
+        parts = tok.split(".")
+        for i, part in enumerate(parts):
+            if part.lower() in LITERALS:
+                continue
+            camel = re.search(r"[a-z][A-Z]", part) or "_" in part or "$" in part
+            if camel or i > 0:
+                names.append(part)
+    return names
+
+
+def unsupported_identifiers(response, contexts, allowed_text=""):
+    """Checkable API names in inline code that appear in no retrieved context.
+
+    allowed_text (e.g. the user's question) is also accepted as a source, since echoing a
+    name the user typed is not a hallucination. Matching is word-level and case-insensitive,
+    so paraphrased snippets (different arguments, quotes, or call style) are not flagged.
+    """
+    corpus = " ".join(c.get("text", "") for c in contexts) + " " + allowed_text
+    known = {w.lower() for w in WORD.findall(corpus)}
     out = []
     for span in CODE_SPAN.findall(response):
-        s = span.strip().rstrip("();,").lower()
-        if len(s) >= 3 and s not in corpus and span not in out:
+        missing = [n for n in api_names(span) if n.lower() not in known]
+        if missing and span not in out:
             out.append(span)
     return out
 
@@ -32,7 +65,7 @@ def deterministic(case, resp):
         "citation_correct": any(page(c) == want for c in cites),
         "citations_valid": all(urlparse(c).scheme == "https" and urlparse(c).netloc.lower() == "playwright.dev" for c in cites),
         "citations_in_context": all(page(c) in ctx_pages for c in cites),
-        "unsupported_identifiers": unsupported_identifiers(resp["response"], ctx),
+        "unsupported_identifiers": unsupported_identifiers(resp["response"], ctx, case.get("question", "")),
     }
 
 
