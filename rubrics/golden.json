@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "applies_to": "data/golden.jsonl",
+  "scale": "each criterion is scored 0, 1 or 2",
+  "criteria": [
+    {
+      "name": "accuracy",
+      "question": "Does the response state the key facts in expected_answer (flag/option names, defaults, behaviour) without contradicting them?",
+      "levels": {"0": "Key fact missing or contradicted", "1": "Partly right; a key detail is wrong, vague or missing", "2": "All key facts present and correct"}
+    },
+    {
+      "name": "completeness",
+      "question": "Does the response cover every part of the question (e.g. both the default and how to change it)?",
+      "levels": {"0": "Answers little of the question", "1": "Answers some parts", "2": "Answers all parts"}
+    },
+    {
+      "name": "groundedness",
+      "question": "Is everything stated consistent with the Playwright docs, with no invented APIs, flags or defaults?",
+      "levels": {"0": "Contains invented or wrong API details", "1": "Minor unsupported detail", "2": "No unsupported claims"}
+    }
+  ],
+  "pass_rule": "accuracy == 2 and groundedness >= 1",
+  "notes": "completeness is reported but does not gate a pass. expected_answer is a paraphrase: judge meaning, not wording. Extra correct detail is fine."
+}

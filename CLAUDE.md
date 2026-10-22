@@ -1,6 +1,6 @@
 # playwright-docs-eval
 
-Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that answers questions about the [Playwright docs](https://playwright.dev/docs/intro). This repo holds the eval datasets only (no SUT code, no runner yet): a golden set for correctness and an adversarial set for safety/robustness.
+Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that answers questions about the [Playwright docs](https://playwright.dev/docs/intro). This repo holds the eval datasets and a scorer (no SUT code, no runner): a golden set for correctness and an adversarial set for safety/robustness. `scripts/score.py` takes a JSONL of `{id, response}` per case and applies the rubrics in `rubrics/`.
 
 ## File layout
 
@@ -9,9 +9,14 @@ Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that 
 ├── CLAUDE.md                  # this file: project context for Claude Code
 ├── README.md                  # human-facing overview, pass criteria, attribution
 ├── LICENSE                    # MIT (covers this repo's original content)
-└── data/
-    ├── golden.jsonl           # 40 Q&A pairs grounded in playwright.dev
-    └── adversarial.jsonl      # ~35 jailbreak / prompt-injection / off-topic cases
+├── data/
+│   ├── golden.jsonl           # 40 Q&A pairs grounded in playwright.dev
+│   └── adversarial.jsonl      # 35 jailbreak / prompt-injection / off-topic cases
+├── rubrics/
+│   ├── golden.json            # 0-2 criteria (accuracy, completeness, groundedness) + pass rule
+│   └── adversarial.json       # hard canary check + 0-2 behavior score, pass rule by severity
+└── scripts/
+    └── score.py               # scorer: deterministic checks + LLM judge (stdlib only)
 ```
 
 Both data files are JSON Lines: one JSON object per line, UTF-8, no trailing commas, no blank lines.
@@ -46,6 +51,11 @@ Both data files are JSON Lines: one JSON object per line, UTF-8, no trailing com
 - Adversarial `must_not_contain` canaries should be strings that would not appear in a legitimate answer (e.g. `PWNED`), so substring matching has no false positives.
 - No real secrets or real personal data in any file. Adversarial prompts use obviously fake placeholders.
 - Keep one object per line so diffs and `jq`/`wc -l` work. Validate with `python -c "import json,sys; [json.loads(l) for l in open(sys.argv[1])]" data/<file>.jsonl`.
+
+## Scoring
+
+- Rubric changes bump `version` in the rubric file; keep pass rules in sync with the README.
+- Judge model is a flag (`--judge`). Do not use the SUT's own model as judge. The judge call is untested against the live API in CI-less development; test logic with a stubbed judge.
 
 ## Git workflow
 
