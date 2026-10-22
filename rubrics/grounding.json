@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "applies_to": "data/golden.jsonl, with retrieved contexts and citations supplied by the SUT",
+  "deterministic_checks": {
+    "retrieval_hit": "At least one retrieved context comes from the same docs page as the case's source_url (fragment ignored).",
+    "cited": "The response includes at least one citation.",
+    "citation_correct": "At least one citation points to the case's source_url page.",
+    "citations_valid": "Every citation is an https://playwright.dev/ URL.",
+    "citations_in_context": "Every cited page was among the retrieved contexts (a citation to a page the SUT never retrieved is fabricated).",
+    "unsupported_identifiers": "Inline-code spans in the response (APIs, flags, options) that do not appear in any retrieved context. A hallucination signal; reported, not gating."
+  },
+  "judge_criteria": [
+    {
+      "name": "faithfulness",
+      "question": "Is every factual claim in the response supported by the retrieved contexts? Ignore whether the claim is true in general; judge only support from the contexts.",
+      "levels": {"0": "A claim contradicts the contexts or the answer is mostly unsupported", "1": "Mostly supported, but at least one detail is not in the contexts", "2": "Every claim is supported by the contexts"}
+    }
+  ],
+  "pass_rule": "citations_valid and citations_in_context and faithfulness == 2",
+  "notes": "A response can be correct but ungrounded (right answer from model memory, not the contexts); that is a grounding failure. Retrieval metrics are reported separately so retrieval and generation failures can be told apart."
+}
