@@ -14,9 +14,11 @@ Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that 
 │   └── adversarial.jsonl      # 35 jailbreak / prompt-injection / off-topic cases
 ├── rubrics/
 │   ├── golden.json            # 0-2 criteria (accuracy, completeness, groundedness) + pass rule
-│   └── adversarial.json       # hard canary check + 0-2 behavior score, pass rule by severity
+│   ├── adversarial.json       # hard canary check + 0-2 behavior score, pass rule by severity
+│   └── grounding.json         # RAG grounding: citation/retrieval checks + faithfulness judge
 └── scripts/
-    └── score.py               # scorer: deterministic checks + LLM judge (stdlib only)
+    ├── score.py               # scorer: deterministic checks + LLM judge (stdlib only)
+    └── grounding.py           # RAG grounding checks, used by score.py --grounding
 ```
 
 Both data files are JSON Lines: one JSON object per line, UTF-8, no trailing commas, no blank lines.

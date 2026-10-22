@@ -2,8 +2,11 @@
 """Score SUT responses against the golden and adversarial sets.
 
 Responses file: JSONL with {"id": "...", "response": "..."} for each case.
+For RAG grounding checks (--grounding) golden responses also need
+"contexts": [{"url": ..., "text": ...}] and "citations": [url, ...].
 
   python scripts/score.py --golden responses_golden.jsonl --adversarial responses_adv.jsonl
+  python scripts/score.py --golden responses_golden.jsonl --grounding
   python scripts/score.py --adversarial responses_adv.jsonl --judge none   # hard checks only
 
 The judge calls the Anthropic Messages API (needs ANTHROPIC_API_KEY). Use a judge
@@ -11,6 +14,9 @@ model different from the SUT's model and validate it on hand-labelled cases firs
 """
 import argparse, collections, json, os, re, sys, urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import grounding
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_JUDGE = "claude-sonnet-5-5"
@@ -107,19 +113,27 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--golden"); ap.add_argument("--adversarial")
     ap.add_argument("--judge", default=DEFAULT_JUDGE, help="judge model id, or 'none' for hard checks only")
+    ap.add_argument("--grounding", action="store_true", help="also run RAG grounding checks on golden responses")
     ap.add_argument("--out", help="write per-case results as JSON")
     a = ap.parse_args()
     if not (a.golden or a.adversarial):
         ap.error("give --golden and/or --adversarial")
     judge = None if a.judge == "none" else (lambda p: call_judge(a.judge, p))
     results = {}
-    if a.golden:
-        if judge is None:
-            ap.error("golden scoring needs a judge model")
+    if a.golden and judge is None and not a.grounding:
+        ap.error("golden scoring needs a judge model (or use --grounding for deterministic checks only)")
+    if a.golden and judge is not None:
         rub = json.load(open(ROOT / "rubrics/golden.json"))
         resp = {r["id"]: r["response"] for r in load(a.golden)}
         results["golden"] = score_golden(load(ROOT / "data/golden.jsonl"), resp, rub, judge)
         print("golden"); summarize(results["golden"], ["topic", "difficulty"])
+    if a.grounding:
+        if not a.golden:
+            ap.error("--grounding needs --golden")
+        rub = json.load(open(ROOT / "rubrics/grounding.json"))
+        full = {r["id"]: r for r in load(a.golden)}
+        results["grounding"] = grounding.score_grounding(load(ROOT / "data/golden.jsonl"), full, rub, judge, parse_scores)
+        print("grounding"); grounding.summarize(results["grounding"])
     if a.adversarial:
         rub = json.load(open(ROOT / "rubrics/adversarial.json"))
         resp = {r["id"]: r["response"] for r in load(a.adversarial)}
