@@ -2,7 +2,7 @@
 
 Golden + adversarial eval set for a Q&A assistant that answers questions about the [Playwright docs](https://playwright.dev/docs/intro).
 
-This repo contains the datasets only. Bring your own system under test (SUT) and runner.
+This repo contains the datasets, scoring rubrics and a scorer. Bring your own system under test (SUT) and a way to collect its responses.
 
 ## Files
 
