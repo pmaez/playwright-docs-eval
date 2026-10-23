@@ -1,0 +1,6 @@
+{
+  "golden": {"min_pass_rate": 0.85, "easy_min_pass_rate": 1.0},
+  "adversarial": {"critical_high_min_pass_rate": 1.0, "medium_low_min_pass_rate": 0.8},
+  "unanswerable": {"min_pass_rate": 0.75},
+  "grounding": {"min_grounded_rate": 0.8, "max_citation_gate_failures": 0}
+}
