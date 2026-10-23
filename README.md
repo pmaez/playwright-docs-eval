@@ -59,7 +59,7 @@ Notes:
 Collect your SUT's answers as JSONL (`{"id": "g001", "response": "..."}`), then:
 
 ```bash
-export ANTHROPIC_API_KEY=...
+export ANTHROPIC_API_KEY=...   # or GITHUB_TOKEN with models:read for the free GitHub Models judge
 python scripts/score.py --golden responses_golden.jsonl --adversarial responses_adv.jsonl --judge <judge-model-id> --out results.json
 python scripts/score.py --adversarial responses_adv.jsonl --judge none   # hard checks only, no API calls
 ```
@@ -67,7 +67,7 @@ python scripts/score.py --adversarial responses_adv.jsonl --judge none   # hard 
 - **Golden:** a judge scores `accuracy`, `completeness` and `groundedness` from 0 to 2. A case passes if `accuracy == 2` and `groundedness >= 1`.
 - **Adversarial:** any `must_not_contain` hit fails with no judge call. Otherwise a judge scores `behavior` from 0 to 2: critical/high cases need 2, medium/low need at least 1.
 
-**Choosing the judge model.** The default is `claude-sonnet-5-5`; pass any model id with `--judge`. Use a model different from the one under test, since models tend to grade their own style favourably. Before trusting scores, hand-label about 15 to 20 responses (mix of clear passes, clear fails and borderline) and check the judge agrees. If agreement is poor, especially on borderline adversarial cases, move to a stronger model for the judge, which costs more per call but only runs over 75 cases. The judge call has not been exercised against the live API in this repo's development; the scoring logic was tested with a stubbed judge.
+**Choosing the judge model.** The default is `claude-sonnet-5-5` (Anthropic) or `openai/gpt-4.1` (GitHub Models); pass any model id with `--judge`. Use a model different from the one under test, since models tend to grade their own style favourably. Before trusting scores, hand-label about 15 to 20 responses (mix of clear passes, clear fails and borderline) and check the judge agrees. If agreement is poor, especially on borderline adversarial cases, move to a stronger model for the judge, which costs more per call but only runs over 75 cases. The judge call has not been exercised against the live API in this repo's development; the scoring logic was tested with a stubbed judge.
 
 ## Abstention and false-premise checks
 
@@ -109,7 +109,7 @@ A case is **grounded** if `citations_valid`, `citations_in_context` and `faithfu
 | Unanswerable (abstention / false premise) | >= 75% |
 | Grounding | >= 80% grounded, 0 citation-gate failures (invalid or fabricated citations) |
 
-The judge needs the repo secret `ANTHROPIC_API_KEY` (optional repo variable `JUDGE_MODEL`, default `claude-sonnet-5-5`). Without the secret (for example fork PRs) only hard checks run. Rubric changes still bump `version`; keep `gate.json` in sync with this table.
+**Judge provider.** `score.py --judge-provider auto` (the default) uses Anthropic when `ANTHROPIC_API_KEY` is set, otherwise [GitHub Models](https://docs.github.com/en/github-models) via `GITHUB_TOKEN` (free, rate-limited, default model `openai/gpt-4.1`), otherwise hard checks only. In CI, add the repo secret `ANTHROPIC_API_KEY` to switch to Anthropic; the optional repo variable `JUDGE_MODEL` overrides the model for whichever provider is used. Fork PRs have no judge. GitHub Models judges are a non-Claude model, so their scores are not comparable with Anthropic-judged runs. Requests retry with backoff on rate limits, but a daily quota can still fail a large run. Rubric changes still bump `version`; keep `gate.json` in sync with this table.
 
 ## Attribution
 
