@@ -8,8 +8,9 @@ Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that 
 .
 ├── CLAUDE.md                  # this file: project context for Claude Code
 ├── README.md                  # human-facing overview, pass criteria, attribution
-├── LICENSE                    # MIT (covers this repo's original content)
+├── LICENSE                    # MIT (covers code and other original content)
 ├── data/
+│   ├── LICENSE                # CC BY 4.0 (covers the datasets)
 │   ├── golden.jsonl           # 40 Q&A pairs grounded in playwright.dev
 │   ├── adversarial.jsonl      # 35 jailbreak / prompt-injection / off-topic cases
 │   └── unanswerable.jsonl     # 16 questions the docs can't answer as asked (abstention / false premise)
