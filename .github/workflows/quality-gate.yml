@@ -1,0 +1,62 @@
+name: quality-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate data, rubrics and scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile scripts
+        run: python -m compileall -q scripts tests
+      - name: Validate datasets and rubrics
+        run: python scripts/validate_data.py
+      - name: Unit tests (gate logic, scorer with stubbed judge)
+        run: python -m unittest discover -s tests -v
+
+  score:
+    name: Score committed SUT responses
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'claude-sonnet-5-5' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Score responses and apply thresholds
+        run: |
+          args=()
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            judge="$JUDGE_MODEL"
+            [ -f responses/golden.jsonl ] && args+=(--golden responses/golden.jsonl --grounding)
+          else
+            echo "::warning::ANTHROPIC_API_KEY not available (fork PR or secret unset): hard checks only, golden skipped"
+            judge=none
+          fi
+          [ -f responses/adversarial.jsonl ] && args+=(--adversarial responses/adversarial.jsonl)
+          [ -f responses/unanswerable.jsonl ] && args+=(--unanswerable responses/unanswerable.jsonl)
+          if [ ${#args[@]} -eq 0 ]; then
+            echo "No responses/*.jsonl to score; skipping."
+            exit 0
+          fi
+          python scripts/score.py "${args[@]}" --judge "$judge" --out results.json
+          python scripts/gate.py results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: results.json
+          if-no-files-found: ignore

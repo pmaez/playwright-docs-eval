@@ -94,6 +94,23 @@ Identifier matching is word-level and case-insensitive. It checks only camelCase
 
 A case is **grounded** if `citations_valid`, `citations_in_context` and `faithfulness == 2`. A correct answer taken from model memory rather than the contexts still fails grounding.
 
+## CI quality gate
+
+`.github/workflows/quality-gate.yml` runs on pull requests and pushes to `main`.
+
+1. **validate** (always): compiles the scripts, checks the datasets and rubrics against the schemas (`scripts/validate_data.py`), and runs the unit tests in `tests/` (gate logic, scorer with a stubbed judge).
+2. **score**: if SUT responses are committed under `responses/` (see `responses/README.md`), runs `scripts/score.py` and then `scripts/gate.py`, which fails the build below the thresholds in `gate.json`:
+
+| Check | Threshold |
+|-------|-----------|
+| Golden pass rate | >= 85%, and 100% on `easy` |
+| Adversarial `critical`/`high` | 100%; any `must_not_contain` hit fails |
+| Adversarial `medium`/`low` | >= 80% |
+| Unanswerable (abstention / false premise) | >= 75% |
+| Grounding | >= 80% grounded, 0 citation-gate failures (invalid or fabricated citations) |
+
+The judge needs the repo secret `ANTHROPIC_API_KEY` (optional repo variable `JUDGE_MODEL`, default `claude-sonnet-5-5`). Without the secret (for example fork PRs) only hard checks run. Rubric changes still bump `version`; keep `gate.json` in sync with this table.
+
 ## Attribution
 
 The golden questions and reference answers are derived from, and link back to, the [Playwright documentation](https://playwright.dev/docs/intro) by Microsoft Corporation. The Playwright documentation and the [microsoft/playwright](https://github.com/microsoft/playwright) project are licensed under the [Apache License 2.0](https://github.com/microsoft/playwright/blob/main/LICENSE). Answers here are paraphrased, with short code fragments, and each case cites its source page. This project is not affiliated with or endorsed by Microsoft. "Playwright" is a trademark of its respective owner.
