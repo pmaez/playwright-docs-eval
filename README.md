@@ -16,7 +16,8 @@ This repo contains the datasets, scoring rubrics and a scorer. Bring your own sy
 | `scripts/score.py` | Scorer: runs the `must_not_contain` hard checks, calls an LLM judge for the rubric scores, and reports pass rates by topic/difficulty/category/severity. |
 | `rubrics/grounding.json`, `scripts/grounding.py` | RAG grounding rubric and checks (citations, retrieval hit, faithfulness). |
 | `CLAUDE.md` | Project context and the authoritative field schemas for Claude Code. |
-| `LICENSE` | MIT, covering the original content of this repo. |
+| `LICENSE` | MIT, covering the code and other original content of this repo. |
+| `data/LICENSE` | CC BY 4.0, covering the datasets in `data/`. |
 
 Both data files are JSON Lines (one object per line).
 
@@ -115,4 +116,4 @@ A case is **grounded** if `citations_valid`, `citations_in_context` and `faithfu
 
 The golden questions and reference answers are derived from, and link back to, the [Playwright documentation](https://playwright.dev/docs/intro) by Microsoft Corporation. The Playwright documentation and the [microsoft/playwright](https://github.com/microsoft/playwright) project are licensed under the [Apache License 2.0](https://github.com/microsoft/playwright/blob/main/LICENSE). Answers here are paraphrased, with short code fragments, and each case cites its source page. This project is not affiliated with or endorsed by Microsoft. "Playwright" is a trademark of its respective owner.
 
-Original content in this repository is available under the MIT License (see `LICENSE`).
+Code and other original content in this repository are available under the MIT License (see `LICENSE`). The datasets in `data/` are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (see `data/LICENSE`); attribute as "playwright-docs-eval by pmaez". CC BY 4.0 applies only to the original questions, cases and wording in those files. Reference answers paraphrased from the Playwright documentation remain subject to the Apache License 2.0 terms noted above.
