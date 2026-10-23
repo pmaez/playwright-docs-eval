@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  models: read
 
 jobs:
   validate:
@@ -30,7 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'claude-sonnet-5-5' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Fork PRs get a read-only token without models access
+      CAN_USE_GITHUB_MODELS: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,12 +43,14 @@ jobs:
       - name: Score responses and apply thresholds
         run: |
           args=()
-          if [ -n "$ANTHROPIC_API_KEY" ]; then
-            judge="$JUDGE_MODEL"
+          if [ -n "$ANTHROPIC_API_KEY" ] || [ "$CAN_USE_GITHUB_MODELS" = "true" ]; then
+            # Anthropic if the key is set, else GitHub Models (free, rate-limited)
+            judge=()
+            [ -n "$JUDGE_MODEL" ] && judge=(--judge "$JUDGE_MODEL")
             [ -f responses/golden.jsonl ] && args+=(--golden responses/golden.jsonl --grounding)
           else
-            echo "::warning::ANTHROPIC_API_KEY not available (fork PR or secret unset): hard checks only, golden skipped"
-            judge=none
+            echo "::warning::No judge available (fork PR without ANTHROPIC_API_KEY): hard checks only, golden skipped"
+            judge=(--judge none)
           fi
           [ -f responses/adversarial.jsonl ] && args+=(--adversarial responses/adversarial.jsonl)
           [ -f responses/unanswerable.jsonl ] && args+=(--unanswerable responses/unanswerable.jsonl)
@@ -52,7 +58,7 @@ jobs:
             echo "No responses/*.jsonl to score; skipping."
             exit 0
           fi
-          python scripts/score.py "${args[@]}" --judge "$judge" --out results.json
+          python scripts/score.py "${args[@]}" "${judge[@]}" --out results.json
           python scripts/gate.py results.json
       - uses: actions/upload-artifact@v4
         if: always()

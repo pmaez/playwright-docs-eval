@@ -10,32 +10,21 @@ For RAG grounding checks (--grounding) golden responses also need
   python scripts/score.py --unanswerable responses_unans.jsonl
   python scripts/score.py --adversarial responses_adv.jsonl --judge none   # hard checks only
 
-The judge calls the Anthropic Messages API (needs ANTHROPIC_API_KEY). Use a judge
-model different from the SUT's model and validate it on hand-labelled cases first.
+The judge is Anthropic (ANTHROPIC_API_KEY) or GitHub Models (GITHUB_TOKEN with models:read; free but
+rate-limited), see scripts/judges.py and --judge-provider. Use a judge model different from the SUT's
+model and validate it on hand-labelled cases first.
 """
-import argparse, collections, json, os, re, sys, urllib.request
+import argparse, collections, json, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import grounding
+import grounding, judges
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_JUDGE = "claude-sonnet-5-5"
 
 
 def load(path):
     return [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
-
-
-def call_judge(model, prompt):
-    body = json.dumps({"model": model, "max_tokens": 400, "temperature": 0,
-                       "messages": [{"role": "user", "content": prompt}]}).encode()
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages", data=body,
-        headers={"x-api-key": os.environ["ANTHROPIC_API_KEY"],
-                 "anthropic-version": "2023-06-01", "content-type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.load(r)["content"][0]["text"]
 
 
 def parse_scores(text):
@@ -143,13 +132,17 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--golden"); ap.add_argument("--adversarial")
     ap.add_argument("--unanswerable", help="responses to data/unanswerable.jsonl (abstention / false-premise checks)")
-    ap.add_argument("--judge", default=DEFAULT_JUDGE, help="judge model id, or 'none' for hard checks only")
+    ap.add_argument("--judge", help="judge model id (default depends on provider), or 'none' for hard checks only")
+    ap.add_argument("--judge-provider", choices=["auto", "anthropic", "github"], default="auto",
+                    help="auto: Anthropic if ANTHROPIC_API_KEY is set, else GitHub Models if GITHUB_TOKEN is set, else hard checks only")
     ap.add_argument("--grounding", action="store_true", help="also run RAG grounding checks on golden responses")
     ap.add_argument("--out", help="write per-case results as JSON")
     a = ap.parse_args()
     if not (a.golden or a.adversarial or a.unanswerable):
         ap.error("give --golden, --adversarial and/or --unanswerable")
-    judge = None if a.judge == "none" else (lambda p: call_judge(a.judge, p))
+    judge = None if a.judge == "none" else judges.make_judge(a.judge_provider, a.judge)
+    if judge is None and a.judge != "none":
+        print("no judge credentials found (ANTHROPIC_API_KEY / GITHUB_TOKEN): hard checks only", file=sys.stderr)
     results = {}
     if a.golden and judge is None and not a.grounding:
         ap.error("golden scoring needs a judge model (or use --grounding for deterministic checks only)")
