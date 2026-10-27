@@ -1,6 +1,6 @@
 # playwright-docs-eval
 
-Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that answers questions about the [Playwright docs](https://playwright.dev/docs/intro). This repo holds the eval datasets and a scorer (no SUT code, no runner): a golden set for correctness and an adversarial set for safety/robustness. `scripts/score.py` takes a JSONL of `{id, response}` per case and applies the rubrics in `rubrics/`.
+Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that answers questions about the [Playwright docs](https://playwright.dev/docs/intro). This repo holds the eval datasets and a scorer (no SUT code; `scripts/run.py` is a runner with pluggable SUT adapters): a golden set for correctness and an adversarial set for safety/robustness. `scripts/score.py` takes a JSONL of `{id, response}` per case and applies the rubrics in `rubrics/`.
 
 ## File layout
 
@@ -19,6 +19,7 @@ Eval portfolio project. The **system under test (SUT)** is a Q&A assistant that 
 │   ├── adversarial.json       # hard canary check + 0-2 behavior score, pass rule by severity
 │   └── grounding.json         # RAG grounding: citation/retrieval checks + faithfulness judge
 └── scripts/
+    ├── run.py                 # runner: SUT adapters (cmd/http/claude) -> response JSONL (stdlib only)
     ├── score.py               # scorer: deterministic checks + LLM judge (stdlib only)
     └── grounding.py           # RAG grounding checks, used by score.py --grounding
 ```
