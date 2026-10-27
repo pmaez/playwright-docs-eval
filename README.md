@@ -63,7 +63,7 @@ python scripts/score.py --golden runs/latest/responses_golden.jsonl --adversaria
   --unanswerable runs/latest/responses_unans.jsonl --grounding --judge <judge-model-id> --out runs/latest/results.json
 ```
 
-A `cmd:` or HTTP SUT receives `{"id", "input"}` per case and replies with plain text, or JSON `{"response", "contexts", "citations"}` (the last two feed `--grounding`). `run.py` itself needs no API key for these; the key is only needed if your SUT calls a model, and for the judge in `score.py`. `--sut claude:<model-id>` is a no-retrieval baseline that needs `ANTHROPIC_API_KEY`.
+A `cmd:` or HTTP SUT receives `{"id", "input"}` per case and replies with plain text, or JSON `{"response", "contexts", "citations"}` (the last two feed `--grounding`). `run.py` itself needs no API key for these; the key is only needed if your SUT calls a model, and for the judge in `score.py`. `--sut ollama:<model>` and `--sut openai:<model>@<base-url>` (llama.cpp, LM Studio, vLLM) run a local model with no key and no retrieval. `--sut claude:<model-id>` is a no-retrieval baseline that needs `ANTHROPIC_API_KEY`.
 
 ## Rubric scoring
 

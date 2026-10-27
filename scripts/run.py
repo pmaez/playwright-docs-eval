@@ -8,6 +8,11 @@ SUT adapters (all send one case at a time):
   cmd:<command>   Run <command>; it reads {"id", "input"} as JSON on stdin and prints either
                   the answer as plain text or a JSON object {"response", "contexts", "citations"}.
   http(s)://...   POST {"id", "input"}; the reply body is the same text or JSON as above.
+  ollama:<model>[@http://host:port]
+                  Local Ollama chat (default http://localhost:11434), no key, no retrieval.
+  openai:<model>@<base-url>
+                  Any OpenAI-compatible server (llama.cpp, LM Studio, vLLM), e.g.
+                  openai:qwen@http://localhost:8080/v1. Sends OPENAI_API_KEY if set.
   claude:<model>  Bare Anthropic Messages API call with a docs-assistant system prompt and no
                   retrieval, so it has no contexts or citations. Use a model other than the judge.
 
@@ -66,16 +71,47 @@ def ask_claude(model, case_id, text):
     return {"response": "".join(b.get("text", "") for b in out["content"])}
 
 
+def post_json(url, body, headers=None):
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                 headers={"content-type": "application/json", **(headers or {})})
+    with urllib.request.urlopen(req, timeout=600) as r:
+        return json.load(r)
+
+
+def ask_ollama(spec, case_id, text):
+    model, _, host = spec.partition("@")
+    out = post_json((host or "http://localhost:11434").rstrip("/") + "/api/chat",
+                    {"model": model, "stream": False,
+                     "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": text}]})
+    return {"response": out["message"]["content"]}
+
+
+def ask_openai(spec, case_id, text):
+    model, sep, base = spec.partition("@")
+    if not sep:
+        sys.exit("openai: needs <model>@<base-url>, e.g. openai:qwen@http://localhost:8080/v1")
+    key = os.environ.get("OPENAI_API_KEY")
+    out = post_json(base.rstrip("/") + "/chat/completions",
+                    {"model": model, "messages": [{"role": "system", "content": SYSTEM},
+                                                  {"role": "user", "content": text}]},
+                    {"authorization": f"Bearer {key}"} if key else None)
+    return {"response": out["choices"][0]["message"]["content"]}
+
+
 def make_asker(sut):
     if sut.startswith("cmd:"):
         return lambda i, t: ask_cmd(sut[4:], i, t)
     if sut.startswith(("http://", "https://")):
         return lambda i, t: ask_http(sut, i, t)
+    if sut.startswith("ollama:"):
+        return lambda i, t: ask_ollama(sut[7:], i, t)
+    if sut.startswith("openai:"):
+        return lambda i, t: ask_openai(sut[7:], i, t)
     if sut.startswith("claude:"):
         if "ANTHROPIC_API_KEY" not in os.environ:
             sys.exit("claude: adapter needs ANTHROPIC_API_KEY")
         return lambda i, t: ask_claude(sut[7:], i, t)
-    sys.exit("--sut must start with cmd:, claude:, http:// or https://")
+    sys.exit("--sut must start with cmd:, ollama:, openai:, claude:, http:// or https://")
 
 
 def main():
