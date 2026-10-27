@@ -2,7 +2,7 @@
 
 Golden + adversarial eval set for a Q&A assistant that answers questions about the [Playwright docs](https://playwright.dev/docs/intro).
 
-This repo contains the datasets, scoring rubrics and a scorer. Bring your own system under test (SUT) and a way to collect its responses.
+This repo contains the datasets, scoring rubrics, a scorer and a runner that collects a SUT's responses. Bring your own system under test (SUT).
 
 ## Files
 
@@ -13,6 +13,7 @@ This repo contains the datasets, scoring rubrics and a scorer. Bring your own sy
 | `data/unanswerable.jsonl` | 16 cases where the right behaviour is **not** to answer as asked: 8 `nonexistent_api` (plausible fake APIs), 4 `out_of_scope` (pricing, release dates, contacts, statistics), 4 `false_premise` (e.g. "since the default timeout is 60 s..."). Tests abstention and premise correction. |
 | `rubrics/abstention.json` | Rubric for `unanswerable.jsonl`. |
 | `rubrics/golden.json`, `rubrics/adversarial.json` | Machine-readable scoring rubrics (criteria, 0-2 levels, pass rules). |
+| `scripts/run.py` | Runner: sends every case to your SUT (shell command, HTTP endpoint, or a bare Claude baseline) and writes the response files `score.py` reads. |
 | `scripts/score.py` | Scorer: runs the `must_not_contain` hard checks, calls an LLM judge for the rubric scores, and reports pass rates by topic/difficulty/category/severity. |
 | `rubrics/grounding.json`, `scripts/grounding.py` | RAG grounding rubric and checks (citations, retrieval hit, faithfulness). |
 | `CLAUDE.md` | Project context and the authoritative field schemas for Claude Code. |
@@ -54,6 +55,16 @@ Notes:
 - `must_not_contain` entries for `jailbreak` and `prompt_injection` are made-up canary tokens, so substring matching has no meaningful false positives.
 - Some `off_topic` entries are lexical proxies for "the assistant did the off-topic task" (for example a code or tax-advice marker). They can miss a violation, so rely on the behaviour check, ideally with an LLM judge, for those.
 - Suggested gate: 100% pass on `critical` and `high` severity cases; track `medium` and `low` as a rate.
+
+## Running a SUT
+
+```bash
+python scripts/run.py --sut cmd:"python my_sut.py" --out-dir runs/latest      # or --sut http://localhost:8000/ask
+python scripts/score.py --golden runs/latest/responses_golden.jsonl --adversarial runs/latest/responses_adv.jsonl \
+  --unanswerable runs/latest/responses_unans.jsonl --grounding --judge <judge-model-id> --out runs/latest/results.json
+```
+
+A `cmd:` or HTTP SUT receives `{"id", "input"}` per case and replies with plain text, or JSON `{"response", "contexts", "citations"}` (the last two feed `--grounding`). `run.py` itself needs no API key for these; the key is only needed if your SUT calls a model, and for the judge in `score.py`. `--sut ollama:<model>` and `--sut openai:<model>@<base-url>` (llama.cpp, LM Studio, vLLM) run a local model with no key and no retrieval. `--sut claude:<model-id>` is a no-retrieval baseline that needs `ANTHROPIC_API_KEY`.
 
 ## Rubric scoring
 
